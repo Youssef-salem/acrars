@@ -32,6 +32,42 @@ Running the script `./build-jar.sh` on a Unix system will build `rars.jar`.
 
 ![Screenshot of sample program](screenshot.png)
 
+## Accessibility
+
+The source-code editor area has been hardened for screen-reader and
+keyboard-only use (VoiceOver on macOS, NVDA / JAWS on Windows):
+
+* The editor panel, the syntax-highlighting text area, the line-number gutter,
+  the caret-position status label, and the *Show Line Numbers* checkbox all
+  expose accessible names and descriptions via Java's
+  `javax.accessibility` API. The *Show Line Numbers* checkbox additionally
+  has an `Alt+L` mnemonic.
+* `Control+Tab` moves keyboard focus *out* of the editor (forward) and
+  `Control+Shift+Tab` moves it backward. Plain `Tab` still inserts an indent
+  inside the editor as before, so users who do not need an escape key keep the
+  old behaviour.
+* RARS ships with two editor implementations. The default syntax-highlighting
+  editor (`JEditTextArea`) paints its own glyphs and historically reported
+  nothing useful to assistive technologies; it now provides an
+  `AccessibleContext` of role `TEXT` with `MULTI_LINE` / `EDITABLE` states and
+  exposes the caret position through `AccessibleValue`.
+* For **full per-character screen-reader navigation** of the source code,
+  enable **Accessibility Mode**. This switches the editor to the plain
+  `javax.swing.JTextArea`-based implementation, whose
+  `AccessibleJTextComponent` is fully understood by VoiceOver, NVDA and JAWS.
+
+  You can enable Accessibility Mode in two ways:
+
+  1. At launch, pass the system property:
+
+     ```
+     java -Drars.accessibility=true -jar rars.jar
+     ```
+
+  2. Persistently, via *Settings → Editor → Use Generic Editor* (the
+     "Use Generic Editor" checkbox forces the same accessible editor and is
+     remembered between sessions).
+
 ## Changes from MARS 4.5
 
 RARS was built on MARS 4.5 and owes a lot to the development of MARS; its

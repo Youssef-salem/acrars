@@ -230,7 +230,31 @@ public class Launch {
     // launching the GUI-fronted integrated development environment.
 
     private void launchIDE() {
-        // System.setProperty("apple.laf.useScreenMenuBar", "true"); // Puts RARS menu on Mac OS menu bar
+        // Use the native macOS screen menu bar (at the top of the screen)
+        // instead of an in-window Swing menu bar. VoiceOver only reliably
+        // reads the native screen menu bar, so this is required for the
+        // Settings / File / Run menus to be accessible on Mac.
+        System.setProperty("apple.laf.useScreenMenuBar", "true");
+        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "RARS");
+
+        // Accessibility: force lightweight popups so tooltips, combo dropdowns
+        // and popup menus don't spawn native heavyweight windows. On macOS, every
+        // heavyweight popup is announced by VoiceOver as "Java has new system
+        // dialog" with empty content, which makes navigation almost unusable.
+        // Lightweight popups are drawn inside the existing frame and do not
+        // trigger that announcement.
+        javax.swing.JPopupMenu.setDefaultLightWeightPopupEnabled(true);
+        javax.swing.ToolTipManager.sharedInstance().setLightWeightPopupEnabled(true);
+        boolean a11y = Boolean.getBoolean("rars.accessibility")
+                || rars.Globals.getSettings().getBooleanSetting(
+                        rars.Settings.Bool.ACCESSIBILITY_MODE);
+        if (a11y) {
+            // In accessibility mode the same information is exposed via each
+            // component's accessibleDescription, so disable the visual tooltip
+            // popups entirely to silence the spurious VoiceOver dialog chatter.
+            javax.swing.ToolTipManager.sharedInstance().setEnabled(false);
+        }
+
         SwingUtilities.invokeLater(
                 new Runnable() {
                     public void run() {
