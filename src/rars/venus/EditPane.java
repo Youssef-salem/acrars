@@ -84,14 +84,39 @@ public class EditPane extends JPanel implements Observer {
         Globals.getSettings().addObserver(this);
         this.fileStatus = new FileStatus();
         lineNumbers = new JLabel();
+        lineNumbers.getAccessibleContext().setAccessibleName("Line numbers");
+        lineNumbers.getAccessibleContext().setAccessibleDescription(
+                "Decorative line-number gutter for the source code editor.");
 
-        if (Globals.getSettings().getBooleanSetting(Settings.Bool.GENERIC_TEXT_EDITOR)) {
+        // Accessibility mode (settable via Settings dialog or -Drars.accessibility=true)
+        // forces the plain JTextArea-based editor whose AccessibleContext is fully
+        // implemented by Swing and therefore readable by VoiceOver / NVDA / JAWS.
+        boolean accessibilityMode =
+                Globals.getSettings().getBooleanSetting(Settings.Bool.ACCESSIBILITY_MODE)
+                || Boolean.getBoolean("rars.accessibility");
+        if (accessibilityMode
+                || Globals.getSettings().getBooleanSetting(Settings.Bool.GENERIC_TEXT_EDITOR)) {
             this.sourceCode = new GenericTextArea(this, lineNumbers);
         } else {
             this.sourceCode = new JEditBasedTextArea(this, lineNumbers);
         }
         // sourceCode is responsible for its own scrolling
         this.add(this.sourceCode.getOuterComponent(), BorderLayout.CENTER);
+
+        // Expose the editor panel itself with an accessible name/description
+        // and label the underlying text component so screen readers announce it
+        // as "RISC-V assembly source code editor" rather than the generic class name.
+        getAccessibleContext().setAccessibleName("Source code editor");
+        getAccessibleContext().setAccessibleDescription(
+                "Edits a RISC-V assembly source file. Use arrow keys to move the caret, "
+                + "Tab to indent, and Control+Tab (Control+Shift+Tab) to move keyboard focus "
+                + "out of the editor.");
+        Component editorComponent = this.sourceCode.getOuterComponent();
+        if (editorComponent instanceof javax.accessibility.Accessible) {
+            ((javax.accessibility.Accessible) editorComponent)
+                    .getAccessibleContext()
+                    .setAccessibleName("RISC-V assembly source code editor");
+        }
 
         // If source code is modified, will set flag to trigger/request file save.
         sourceCode.getDocument().addDocumentListener(
@@ -151,6 +176,9 @@ public class EditPane extends JPanel implements Observer {
 
         showLineNumbers = new JCheckBox("Show Line Numbers");
         showLineNumbers.setToolTipText("If checked, will display line number for each line of text.");
+        showLineNumbers.setMnemonic(java.awt.event.KeyEvent.VK_L);
+        showLineNumbers.getAccessibleContext().setAccessibleDescription(
+                "Toggle the line-number gutter shown to the left of the source code editor.");
         showLineNumbers.setEnabled(false);
         // Show line numbers by default.
         showLineNumbers.setSelected(Globals.getSettings().getBooleanSetting(Settings.Bool.EDITOR_LINE_NUMBERS_DISPLAYED));
@@ -184,9 +212,19 @@ public class EditPane extends JPanel implements Observer {
         JPanel editInfo = new JPanel(new BorderLayout());
         caretPositionLabel = new JLabel();
         caretPositionLabel.setToolTipText("Tracks the current position of the text editing cursor.");
+        caretPositionLabel.getAccessibleContext().setAccessibleName("Caret position");
+        caretPositionLabel.getAccessibleContext().setAccessibleDescription(
+                "Current line and column of the text editing cursor in the source code editor.");
+        if (editorComponent instanceof javax.accessibility.Accessible) {
+            // Mark the caret-position label as a label for the editor component so
+            // assistive technologies can associate the two.
+            caretPositionLabel.getAccessibleContext().setAccessibleParent(
+                    (javax.accessibility.Accessible) editorComponent);
+        }
         displayCaretPosition(new Point());
         editInfo.add(caretPositionLabel, BorderLayout.WEST);
         editInfo.add(showLineNumbers, BorderLayout.CENTER);
+        editInfo.getAccessibleContext().setAccessibleName("Editor status bar");
         this.add(editInfo, BorderLayout.SOUTH);
     }
 

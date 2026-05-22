@@ -63,6 +63,35 @@ public class GenericTextArea extends JTextArea implements TextEditingArea {
         this.setMargin(new Insets(0, 3, 3, 3));
         this.setCaretBlinkRate(Globals.getSettings().getCaretBlinkRate());
 
+        // --- Accessibility ---------------------------------------------------
+        // Provide a descriptive name/description so screen readers (VoiceOver,
+        // NVDA, JAWS) announce this component meaningfully instead of saying
+        // "text area, blank". The underlying javax.swing.text.AccessibleJTextComponent
+        // already exposes the document text character-by-character.
+        getAccessibleContext().setAccessibleName("RISC-V assembly source code editor");
+        getAccessibleContext().setAccessibleDescription(
+                "Multiline plain-text editor for RISC-V assembly source. "
+                + "Use arrow keys to navigate, Tab to indent, and Control+Tab "
+                + "(Control+Shift+Tab) to move keyboard focus out of the editor.");
+        // Make the field keyboard-escapable. JTextArea normally swallows Tab as
+        // an indent character which traps screen-reader / keyboard users in the
+        // field; switch the focus-traversal keys to Control+Tab / Control+Shift+Tab
+        // and leave plain Tab to insert indentation as expected.
+        setFocusTraversalKeys(
+                java.awt.KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(
+                        javax.swing.KeyStroke.getKeyStroke(
+                                java.awt.event.KeyEvent.VK_TAB,
+                                java.awt.event.InputEvent.CTRL_DOWN_MASK)));
+        setFocusTraversalKeys(
+                java.awt.KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(
+                        javax.swing.KeyStroke.getKeyStroke(
+                                java.awt.event.KeyEvent.VK_TAB,
+                                java.awt.event.InputEvent.CTRL_DOWN_MASK
+                                        | java.awt.event.InputEvent.SHIFT_DOWN_MASK)));
+        // ---------------------------------------------------------------------
+
         JPanel source = new JPanel(new BorderLayout());
         source.add(lineNumbers, BorderLayout.WEST);
         source.add(this, BorderLayout.CENTER);

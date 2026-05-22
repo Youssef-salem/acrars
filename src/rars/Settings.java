@@ -158,7 +158,16 @@ public class Settings extends Observable {
          * Flag to determine whether to calculate relative paths from the current working directory
          * or from the RARS executable path.
         */
-        DERIVE_CURRENT_WORKING_DIRECTORY("DeriveCurrentWorkingDirectory", false);
+        DERIVE_CURRENT_WORKING_DIRECTORY("DeriveCurrentWorkingDirectory", false),
+        /**
+         * Accessibility mode. When true (or when the JVM is started with
+         * {@code -Drars.accessibility=true}), the editor uses the plain
+         * {@link javax.swing.JTextArea}-based editor whose
+         * {@link javax.accessibility.AccessibleContext} is fully implemented
+         * by Swing, so screen readers such as VoiceOver, NVDA and JAWS can
+         * read source code line-by-line and character-by-character.
+         */
+        ACCESSIBILITY_MODE("AccessibilityMode", false);
 
         // TODO: add option for turning off user trap handling and interrupts
         private String name;

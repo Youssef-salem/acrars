@@ -162,6 +162,104 @@ public class JEditTextArea extends JComponent {
 
         // We don't seem to get the initial focus event?
         focusedComponent = this;
+
+        // --- Accessibility / keyboard navigation -----------------------------
+        // The plain Tab / Shift+Tab keys are claimed above as indent characters,
+        // which means a screen-reader or keyboard user has no way to leave the
+        // editor with the keyboard. Register Control+Tab / Control+Shift+Tab as
+        // focus-traversal keys so the field can always be escaped.
+        setFocusTraversalKeys(
+                KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(
+                        javax.swing.KeyStroke.getKeyStroke(
+                                KeyEvent.VK_TAB,
+                                InputEvent.CTRL_DOWN_MASK)));
+        setFocusTraversalKeys(
+                KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(
+                        javax.swing.KeyStroke.getKeyStroke(
+                                KeyEvent.VK_TAB,
+                                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK)));
+        // Give the component a meaningful accessible name; the full
+        // AccessibleContext implementation lives in getAccessibleContext() below.
+        getAccessibleContext().setAccessibleName("RISC-V assembly source code editor");
+        getAccessibleContext().setAccessibleDescription(
+                "Syntax-highlighted editor for RISC-V assembly source. "
+                + "For best screen-reader support, enable Accessibility Mode in "
+                + "Settings > Editor (which switches to the plain text editor whose "
+                + "contents are fully exposed to assistive technologies).");
+        // ---------------------------------------------------------------------
+    }
+
+    /**
+     * Returns an AccessibleContext that exposes this custom-painted text
+     * component to assistive technologies. JEditTextArea extends JComponent and
+     * paints its own glyphs, so Swing's default AccessibleJComponent only
+     * reports the component as a generic panel. This override at least exposes
+     * the current document contents and the editable state so VoiceOver / NVDA
+     * / JAWS can read the source code as text. For full per-character
+     * navigation, users should enable Accessibility Mode (Settings > Editor) to
+     * switch to the standard JTextArea-based editor.
+     */
+    @Override
+    public javax.accessibility.AccessibleContext getAccessibleContext() {
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJEditTextArea();
+        }
+        return accessibleContext;
+    }
+
+    private class AccessibleJEditTextArea extends AccessibleJComponent
+            implements javax.accessibility.AccessibleValue {
+        @Override
+        public javax.accessibility.AccessibleRole getAccessibleRole() {
+            return javax.accessibility.AccessibleRole.TEXT;
+        }
+
+        @Override
+        public javax.accessibility.AccessibleStateSet getAccessibleStateSet() {
+            javax.accessibility.AccessibleStateSet states = super.getAccessibleStateSet();
+            states.add(javax.accessibility.AccessibleState.MULTI_LINE);
+            if (isEditable()) {
+                states.add(javax.accessibility.AccessibleState.EDITABLE);
+            }
+            return states;
+        }
+
+        @Override
+        public String getAccessibleName() {
+            String name = super.getAccessibleName();
+            return (name != null) ? name : "RISC-V assembly source code editor";
+        }
+
+        // Expose the document text as the accessible value so screen readers
+        // that query AccessibleValue (or fall back to it) can read the source.
+        @Override
+        public javax.accessibility.AccessibleValue getAccessibleValue() {
+            return this;
+        }
+
+        @Override
+        public Number getCurrentAccessibleValue() {
+            return getCaretPosition();
+        }
+
+        @Override
+        public boolean setCurrentAccessibleValue(Number n) {
+            if (n == null) return false;
+            setCaretPosition(Math.max(0, Math.min(getDocumentLength(), n.intValue())));
+            return true;
+        }
+
+        @Override
+        public Number getMinimumAccessibleValue() {
+            return Integer.valueOf(0);
+        }
+
+        @Override
+        public Number getMaximumAccessibleValue() {
+            return Integer.valueOf(getDocumentLength());
+        }
     }
 
 
