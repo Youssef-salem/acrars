@@ -113,7 +113,8 @@ public class SettingsEditorAction extends GuiAction {
 
         private JSlider tabSizeSelector;
         private JSpinner tabSizeSpinSelector, blinkRateSpinSelector, popupPrefixLengthSpinSelector;
-        private JCheckBox lineHighlightCheck, genericEditorCheck, autoIndentCheck;
+        private JCheckBox lineHighlightCheck, genericEditorCheck, autoIndentCheck, accessibilityCheck;
+        private boolean initialAccessibilityMode;
         private ColorChangerPanel bgChanger, fgChanger, lhChanger, textSelChanger, caretChanger;
         private Caret blinkCaret;
         private JTextField blinkSample;
@@ -193,7 +194,9 @@ public class SettingsEditorAction extends GuiAction {
                     });
             initialGenericTextEditor = Globals.getSettings().getBooleanSetting(Settings.Bool.GENERIC_TEXT_EDITOR);
             genericEditorCheck = new JCheckBox("Use Generic Editor", initialGenericTextEditor);
+            genericEditorCheck.setMnemonic(java.awt.event.KeyEvent.VK_G);
             genericEditorCheck.setToolTipText(GENERIC_TOOL_TIP_TEXT);
+            genericEditorCheck.getAccessibleContext().setAccessibleDescription(GENERIC_TOOL_TIP_TEXT);
             genericEditorCheck.addItemListener(
                     new ItemListener() {
                         public void itemStateChanged(ItemEvent e) {
@@ -207,6 +210,33 @@ public class SettingsEditorAction extends GuiAction {
                         }
                     });
 
+            // --- Accessibility Mode checkbox -------------------------------
+            // When enabled, the editor uses the plain JTextArea-based editor
+            // (whose AccessibleJTextComponent is fully readable by VoiceOver,
+            // NVDA and JAWS) instead of the custom-painted syntax editor.
+            initialAccessibilityMode =
+                    Globals.getSettings().getBooleanSetting(Settings.Bool.ACCESSIBILITY_MODE);
+            accessibilityCheck = new JCheckBox("Accessibility Mode", initialAccessibilityMode);
+            accessibilityCheck.setMnemonic(java.awt.event.KeyEvent.VK_Y);
+            String accessibilityTooltip =
+                    "Use the plain text editor so screen readers (VoiceOver, NVDA, JAWS) can read "
+                    + "source code character-by-character. Forces the Generic Editor on.";
+            accessibilityCheck.setToolTipText(accessibilityTooltip);
+            accessibilityCheck.getAccessibleContext().setAccessibleDescription(accessibilityTooltip);
+            accessibilityCheck.addItemListener(new ItemListener() {
+                public void itemStateChanged(ItemEvent e) {
+                    if (accessibilityCheck.isSelected() && !genericEditorCheck.isSelected()) {
+                        // Accessibility mode requires the generic editor.
+                        genericEditorCheck.setSelected(true);
+                    }
+                    genericEditorCheck.setEnabled(!accessibilityCheck.isSelected());
+                }
+            });
+            if (initialAccessibilityMode) {
+                genericEditorCheck.setEnabled(false);
+            }
+            // ---------------------------------------------------------------
+
             controlPanel.add(Box.createHorizontalGlue());
             controlPanel.add(okButton);
             controlPanel.add(Box.createHorizontalGlue());
@@ -218,12 +248,18 @@ public class SettingsEditorAction extends GuiAction {
             controlPanel.add(Box.createHorizontalGlue());
             controlPanel.add(genericEditorCheck);
             controlPanel.add(Box.createHorizontalGlue());
+            controlPanel.add(accessibilityCheck);
+            controlPanel.add(Box.createHorizontalGlue());
             return controlPanel;
         }
 
         // User has clicked "Apply" or "Apply and Close" button.  Required method, is
         // abstract in superclass.
         protected void apply(Font font) {
+            Globals.getSettings().setBooleanSetting(Settings.Bool.ACCESSIBILITY_MODE, accessibilityCheck.isSelected());
+            // Apply tooltip suppression live so VoiceOver stops announcing
+            // "Java has new system dialog" for every tooltip popup.
+            javax.swing.ToolTipManager.sharedInstance().setEnabled(!accessibilityCheck.isSelected());
             Globals.getSettings().setBooleanSetting(Settings.Bool.GENERIC_TEXT_EDITOR, genericEditorCheck.isSelected());
             Globals.getSettings().setBooleanSetting(Settings.Bool.EDITOR_CURRENT_LINE_HIGHLIGHTING, lineHighlightCheck.isSelected());
             Globals.getSettings().setBooleanSetting(Settings.Bool.AUTO_INDENT, autoIndentCheck.isSelected());
@@ -264,6 +300,8 @@ public class SettingsEditorAction extends GuiAction {
             resetOtherSettings();
             syntaxStylesAction = true;
             genericEditorCheck.setSelected(initialGenericTextEditor);
+            accessibilityCheck.setSelected(initialAccessibilityMode);
+            genericEditorCheck.setEnabled(!initialAccessibilityMode);
         }
 
         // Perform reset on miscellaneous editor settings

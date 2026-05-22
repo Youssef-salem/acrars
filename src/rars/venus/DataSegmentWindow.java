@@ -109,6 +109,9 @@ public class DataSegmentWindow extends JInternalFrame implements Observer {
 
     public DataSegmentWindow(NumberDisplayBaseChooser[] choosers) {
         super("Data Segment", true, false, true, true);
+        getAccessibleContext().setAccessibleName("Data Segment window");
+        getAccessibleContext().setAccessibleDescription(
+                "Shows simulated memory contents and lets you navigate between memory regions.");
 
         Simulator.getInstance().addObserver(this);
         settings = Globals.getSettings();
@@ -145,6 +148,9 @@ public class DataSegmentWindow extends JInternalFrame implements Observer {
         baseAddressSelector.setEditable(false);
         baseAddressSelector.setSelectedIndex(defaultBaseAddressIndex);
         baseAddressSelector.setToolTipText("Base address for data segment display");
+        baseAddressSelector.getAccessibleContext().setAccessibleName("Base address");
+        baseAddressSelector.getAccessibleContext().setAccessibleDescription(
+                "Choose which memory segment to view: .data, heap, stack, .text, MMIO, or pointers.");
         baseAddressSelector.addActionListener(
                 new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
@@ -164,6 +170,10 @@ public class DataSegmentWindow extends JInternalFrame implements Observer {
         }
         asciiDisplayCheckBox = new JCheckBox("ASCII", asciiDisplay);
         asciiDisplayCheckBox.setToolTipText("Display data segment values in ASCII (overrides Hexadecimal Values setting)");
+        asciiDisplayCheckBox.setMnemonic(java.awt.event.KeyEvent.VK_I);
+        asciiDisplayCheckBox.getAccessibleContext().setAccessibleName("ASCII display");
+        asciiDisplayCheckBox.getAccessibleContext().setAccessibleDescription(
+                "When checked, data values are shown as ASCII characters instead of numbers.");
         asciiDisplayCheckBox.addItemListener(
                 new ItemListener() {
                     public void itemStateChanged(ItemEvent e) {
@@ -430,6 +440,10 @@ public class DataSegmentWindow extends JInternalFrame implements Observer {
             names[i] = getHeaderStringForColumn(i, addressBase);
         }
         dataTable = new MyTippedJTable(new DataTableModel(dataData, names));
+        dataTable.getAccessibleContext().setAccessibleName("Data segment memory table");
+        dataTable.getAccessibleContext().setAccessibleDescription(
+                "Memory contents. Column 0 is the address, columns 1-8 are word values. " +
+                "Use arrow keys to navigate; values are read-only here, double-click to edit.");
         updateRowHeight();
         // Do not allow user to re-order columns; column order corresponds to MIPS memory order
         dataTable.getTableHeader().setReorderingAllowed(false);
@@ -669,6 +683,19 @@ public class DataSegmentWindow extends JInternalFrame implements Observer {
         nextButton.setToolTipText("View next higher address range; hold down for rapid fire");
         dataButton.setToolTipText("View range around static data segment base address " +
                 Binary.intToHexString(Memory.dataBaseAddress));
+
+        // Accessibility: give all nav buttons spoken names + descriptions.
+        prevButton.getAccessibleContext().setAccessibleName("Previous memory page");
+        prevButton.getAccessibleContext().setAccessibleDescription(prevButton.getToolTipText());
+        nextButton.getAccessibleContext().setAccessibleName("Next memory page");
+        nextButton.getAccessibleContext().setAccessibleDescription(nextButton.getToolTipText());
+        globButton.getAccessibleContext().setAccessibleName("View global pointer");
+        stakButton.getAccessibleContext().setAccessibleName("View stack pointer");
+        heapButton.getAccessibleContext().setAccessibleName("View heap");
+        extnButton.getAccessibleContext().setAccessibleName("View extern segment");
+        mmioButton.getAccessibleContext().setAccessibleName("View MMIO");
+        textButton.getAccessibleContext().setAccessibleName("View text segment");
+        dataButton.getAccessibleContext().setAccessibleName("View data segment");
 
         // add the action listeners to maintain button state and table contents
         // Currently there is no memory upper bound so next button always enabled.

@@ -53,6 +53,11 @@ public class ToolAction extends AbstractAction {
     public ToolAction(Tool tool) {
         super(tool.getName(), null);
         this.tool = tool;
+        // Accessibility: provide a short description so screen readers announce
+        // what the tool does when its menu item is focused.
+        String desc = tool.getName() + " tool. Activates an external RARS tool.";
+        putValue(SHORT_DESCRIPTION, desc);
+        putValue(LONG_DESCRIPTION, desc);
     }
 
 

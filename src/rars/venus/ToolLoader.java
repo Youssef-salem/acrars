@@ -73,9 +73,13 @@ public class ToolLoader {
         if (!toolList.isEmpty()) {
             menu = new JMenu(TOOLS_MENU_NAME);
             menu.setMnemonic(KeyEvent.VK_T);
+            menu.getAccessibleContext().setAccessibleName("Tools menu");
+            menu.getAccessibleContext().setAccessibleDescription(
+                    "External RARS tools that observe or interact with simulated execution.");
             // traverse array list and build menu
             for (Tool tool : toolList) {
-                menu.add(new ToolAction(tool));
+                JMenuItem item = menu.add(new ToolAction(tool));
+                item.getAccessibleContext().setAccessibleName(tool.getName());
             }
         }
         return menu;

@@ -3,6 +3,7 @@ package rars.venus.settings;
 import rars.Globals;
 import rars.Settings;
 import rars.venus.GuiAction;
+import rars.venus.util.NativeFileDialog;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -161,16 +162,19 @@ public class SettingsExceptionHandlerAction extends GuiAction {
     // Associated action class: selecting exception handler file.  Attached to handler selector.
     private class ExceptionHandlerSelectionAction implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            JFileChooser chooser = new JFileChooser();
             String pathname = Globals.getSettings().getExceptionHandler();
+            String initialDir = null;
             if (pathname != null) {
                 File file = new File(pathname);
-                if (file.exists()) chooser.setSelectedFile(file);
+                if (file.exists()) {
+                    initialDir = file.getParent();
+                }
             }
-            int result = chooser.showOpenDialog(Globals.getGui());
-            if (result == JFileChooser.APPROVE_OPTION) {
-                pathname = chooser.getSelectedFile().getPath();//.replaceAll("\\\\","/");
-                exceptionHandlerDisplay.setText(pathname);
+            File chosen = NativeFileDialog.open(Globals.getGui(),
+                    "Select Exception Handler", initialDir,
+                    NativeFileDialog.assemblerFilter());
+            if (chosen != null) {
+                exceptionHandlerDisplay.setText(chosen.getPath());
             }
         }
     }

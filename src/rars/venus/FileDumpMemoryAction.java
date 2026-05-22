@@ -7,6 +7,7 @@ import rars.riscv.hardware.AddressErrorException;
 import rars.riscv.hardware.Memory;
 import rars.util.Binary;
 import rars.util.MemoryDump;
+import rars.venus.util.NativeFileDialog;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -223,45 +224,17 @@ public class FileDumpMemoryAction extends GuiAction {
     // User has clicked "Dump" button, so launch a file chooser then get
     // segment (memory range) and format selections and save to the file.
     private boolean performDump(int firstAddress, int lastAddress, DumpFormat format) {
-        File theFile;
-        JFileChooser saveDialog;
-        boolean operationOK = false;
-
-        saveDialog = new JFileChooser(mainUI.getEditor().getCurrentSaveDirectory());
-        saveDialog.setDialogTitle(title);
-        while (!operationOK) {
-            int decision = saveDialog.showSaveDialog(mainUI);
-            if (decision != JFileChooser.APPROVE_OPTION) {
-                return false;
-            }
-            theFile = saveDialog.getSelectedFile();
-            operationOK = true;
-            if (theFile.exists()) {
-                int overwrite = JOptionPane.showConfirmDialog(mainUI,
-                        "File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
-                        "Overwrite existing file?",
-                        JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-                switch (overwrite) {
-                    case JOptionPane.YES_OPTION:
-                        operationOK = true;
-                        break;
-                    case JOptionPane.NO_OPTION:
-                        operationOK = false;
-                        break;
-                    case JOptionPane.CANCEL_OPTION:
-                        return false;
-                    default: // should never occur
-                        return false;
-                }
-            }
-            if (operationOK) {
-                try {
-                    format.dumpMemoryRange(theFile, firstAddress, lastAddress,Globals.memory);
-                } catch (AddressErrorException aee) {
-
-                } catch (IOException ioe) {
-                }
-            }
+        // Use the native OS Save dialog. It handles its own overwrite
+        // confirmation, so we don't need to ask again.
+        File theFile = NativeFileDialog.save(mainUI, title,
+                mainUI.getEditor().getCurrentSaveDirectory(), null);
+        if (theFile == null) {
+            return false;
+        }
+        try {
+            format.dumpMemoryRange(theFile, firstAddress, lastAddress, Globals.memory);
+        } catch (AddressErrorException aee) {
+        } catch (IOException ioe) {
         }
         return true;
     }

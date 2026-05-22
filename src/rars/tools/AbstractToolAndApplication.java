@@ -192,6 +192,12 @@ public abstract class AbstractToolAndApplication extends JFrame implements Tool,
     public void action() {
         this.isBeingUsedAsATool = true;
         dialog = new JDialog(Globals.getGui(), this.title);
+        // Accessibility: name the tool window so screen readers announce
+        // it as e.g. "Bitmap Display" instead of a generic "dialog".
+        dialog.getAccessibleContext().setAccessibleName(this.title);
+        if (this.heading != null) {
+            dialog.getAccessibleContext().setAccessibleDescription(this.heading);
+        }
         // assure the dialog goes away if user clicks the X
         dialog.addWindowListener(
                 new WindowAdapter() {

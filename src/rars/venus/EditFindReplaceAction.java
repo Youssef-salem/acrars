@@ -120,8 +120,25 @@ public class EditFindReplaceAction extends GuiAction {
             JPanel inputPanel = new JPanel();
             JPanel labelsPanel = new JPanel(new GridLayout(2, 1, 5, 5));
             JPanel fieldsPanel = new JPanel(new GridLayout(2, 1, 5, 5));
-            labelsPanel.add(new JLabel("Find what:"));
-            labelsPanel.add(new JLabel("Replace with:"));
+            JLabel findLabel = new JLabel("Find what:");
+            JLabel replaceLabel = new JLabel("Replace with:");
+            // --- Accessibility: associate each label with its text field via
+            // setLabelFor + Alt mnemonics so screen readers announce the field
+            // name when focus moves to the field and keyboard users can jump
+            // straight to a field with Alt+F / Alt+R. ---
+            findLabel.setDisplayedMnemonic(java.awt.event.KeyEvent.VK_F);
+            findLabel.setLabelFor(findInputField);
+            replaceLabel.setDisplayedMnemonic(java.awt.event.KeyEvent.VK_R);
+            replaceLabel.setLabelFor(replaceInputField);
+            findInputField.getAccessibleContext().setAccessibleName("Find what");
+            findInputField.getAccessibleContext().setAccessibleDescription(
+                    "Text to search for in the active source file.");
+            replaceInputField.getAccessibleContext().setAccessibleName("Replace with");
+            replaceInputField.getAccessibleContext().setAccessibleDescription(
+                    "Replacement text used by the Replace and Replace all buttons.");
+            // -----------------------------------------------------------
+            labelsPanel.add(findLabel);
+            labelsPanel.add(replaceLabel);
             fieldsPanel.add(findInputField);
             fieldsPanel.add(replaceInputField);
 
@@ -139,6 +156,9 @@ public class EditFindReplaceAction extends GuiAction {
         private Component buildOptionsPanel() {
             Box optionsPanel = Box.createHorizontalBox();
             caseSensitiveCheckBox = new JCheckBox("Case Sensitive", caseSensitivity);
+            caseSensitiveCheckBox.setMnemonic(java.awt.event.KeyEvent.VK_C);
+            caseSensitiveCheckBox.getAccessibleContext().setAccessibleDescription(
+                    "When checked, the find and replace operations match upper and lower case exactly.");
             JPanel casePanel = new JPanel(new GridLayout(2, 1));
             casePanel.add(caseSensitiveCheckBox);
             casePanel.setMaximumSize(casePanel.getPreferredSize());
@@ -149,6 +169,9 @@ public class EditFindReplaceAction extends GuiAction {
             resultsLabel = new JLabel("");
             resultsLabel.setForeground(Color.RED);
             resultsLabel.setToolTipText(RESULTS_TOOL_TIP_TEXT);
+            resultsLabel.getAccessibleContext().setAccessibleName("Find or replace outcome");
+            // Announce live updates of the result text to screen readers; the
+            // ACCESSIBLE_TEXT_PROPERTY fires when the JLabel's text changes.
             resultsPanel.add(resultsLabel);
             optionsPanel.add(resultsPanel);
             return optionsPanel;
@@ -160,7 +183,9 @@ public class EditFindReplaceAction extends GuiAction {
             Box controlPanel = Box.createHorizontalBox();
             controlPanel.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
             findButton = new JButton("Find");
+            findButton.setMnemonic(java.awt.event.KeyEvent.VK_N);
             findButton.setToolTipText(FIND_TOOL_TIP_TEXT);
+            findButton.getAccessibleContext().setAccessibleDescription(FIND_TOOL_TIP_TEXT);
             findButton.addActionListener(
                     new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
@@ -168,7 +193,9 @@ public class EditFindReplaceAction extends GuiAction {
                         }
                     });
             replaceButton = new JButton("Replace then Find");
+            replaceButton.setMnemonic(java.awt.event.KeyEvent.VK_P);
             replaceButton.setToolTipText(REPLACE_TOOL_TIP_TEXT);
+            replaceButton.getAccessibleContext().setAccessibleDescription(REPLACE_TOOL_TIP_TEXT);
             replaceButton.addActionListener(
                     new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
@@ -176,7 +203,9 @@ public class EditFindReplaceAction extends GuiAction {
                         }
                     });
             replaceAllButton = new JButton("Replace all");
+            replaceAllButton.setMnemonic(java.awt.event.KeyEvent.VK_A);
             replaceAllButton.setToolTipText(REPLACE_ALL_TOOL_TIP_TEXT);
+            replaceAllButton.getAccessibleContext().setAccessibleDescription(REPLACE_ALL_TOOL_TIP_TEXT);
             replaceAllButton.addActionListener(
                     new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
@@ -184,7 +213,9 @@ public class EditFindReplaceAction extends GuiAction {
                         }
                     });
             closeButton = new JButton("Close");
+            closeButton.setMnemonic(java.awt.event.KeyEvent.VK_S);
             closeButton.setToolTipText(CLOSE_TOOL_TIP_TEXT);
+            closeButton.getAccessibleContext().setAccessibleDescription(CLOSE_TOOL_TIP_TEXT);
             closeButton.addActionListener(
                     new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
