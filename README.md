@@ -68,6 +68,33 @@ keyboard-only use (VoiceOver on macOS, NVDA / JAWS on Windows):
      "Use Generic Editor" checkbox forces the same accessible editor and is
      remembered between sessions).
 
+## Building
+
+Requires JDK 17+ (Temurin tested). After cloning, initialise the JSoftFloat
+submodule:
+
+```
+git clone --recurse-submodules https://github.com/Youssef-salem/acrars.git
+cd acrars
+bash build-jar.sh          # → rars.jar
+java -Drars.accessibility=true -jar rars.jar
+```
+
+(If you cloned without `--recurse-submodules`, run
+`git submodule update --init` first.)
+
+### macOS app bundle
+
+To produce a double-clickable, screen-reader-friendly `RARS.app` with the
+Java 17 runtime embedded (so it works regardless of the system Java version):
+
+```
+bash build-app.sh          # → dist/RARS.app
+open dist/RARS.app
+```
+
+Drag `dist/RARS.app` into `/Applications` to make it Spotlight-searchable.
+
 ## Changes from MARS 4.5
 
 RARS was built on MARS 4.5 and owes a lot to the development of MARS; its

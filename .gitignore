@@ -5,6 +5,7 @@ out
 # Build products
 build
 rars.jar
+dist
 
 # Eclipse project files
 .classpath
