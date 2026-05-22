@@ -92,6 +92,34 @@ public class ExecutePane extends JDesktopPane {
         dataSegment.setVisible(true);
         labelValues.setVisible(labelWindowVisible);
 
+        // --- Accessibility ---------------------------------------------------
+        // The execute view is a JDesktopPane hosting three JInternalFrames.
+        // Provide screen-reader friendly names so users can orient themselves.
+        getAccessibleContext().setAccessibleName("Execute view");
+        getAccessibleContext().setAccessibleDescription(
+                "Shows the assembled program's text segment, data segment and label table. "
+                + "Use Control+F6 to cycle keyboard focus between the internal windows.");
+        textSegment.setName("Text segment window");
+        textSegment.getAccessibleContext().setAccessibleName("Text segment");
+        textSegment.getAccessibleContext().setAccessibleDescription(
+                "Table of assembled instructions with address, machine code, basic and source columns. "
+                + "Use arrow keys to move between cells, and Space on a row to toggle a breakpoint.");
+        dataSegment.setName("Data segment window");
+        dataSegment.getAccessibleContext().setAccessibleName("Data segment");
+        dataSegment.getAccessibleContext().setAccessibleDescription(
+                "Table view of memory contents in the data segment. "
+                + "Use the navigation buttons or arrow keys to move through memory.");
+        labelValues.setName("Labels window");
+        labelValues.getAccessibleContext().setAccessibleName("Labels");
+        labelValues.getAccessibleContext().setAccessibleDescription(
+                "Symbol table showing each label defined by the program and its address.");
+        addressDisplayBase.getAccessibleContext().setAccessibleName("Hexadecimal addresses");
+        addressDisplayBase.getAccessibleContext().setAccessibleDescription(
+                "Toggle whether memory and instruction addresses are displayed in hexadecimal or decimal.");
+        valueDisplayBase.getAccessibleContext().setAccessibleName("Hexadecimal values");
+        valueDisplayBase.getAccessibleContext().setAccessibleDescription(
+                "Toggle whether memory and register values are displayed in hexadecimal or decimal.");
+        // ---------------------------------------------------------------------
     }
 
     /**

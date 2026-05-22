@@ -178,6 +178,89 @@ public class MessagesPane extends JTabbedPane {
 
         this.setToolTipTextAt(0, "Messages produced by Run menu. Click on assemble error message to select erroneous line");
         this.setToolTipTextAt(1, "Simulated console input and output");
+
+        // --- Accessibility ---------------------------------------------------
+        getAccessibleContext().setAccessibleName("Messages and console tabs");
+        getAccessibleContext().setAccessibleDescription(
+                "Use the left and right arrow keys to switch between the assembler "
+                + "messages tab and the simulated console input/output tab.");
+        assemble.getAccessibleContext().setAccessibleName("Assembler and simulator messages");
+        assemble.getAccessibleContext().setAccessibleDescription(
+                "Read-only log of messages produced while assembling and running the program. "
+                + "Press Enter on a line beginning with \"Error\" or \"Warning\" to jump to the offending source line.");
+        run.getAccessibleContext().setAccessibleName("Simulated console");
+        run.getAccessibleContext().setAccessibleDescription(
+                "Standard input and output for the simulated RISC-V program. Type here when the "
+                + "program reads from standard input.");
+        assembleTabClearButton.getAccessibleContext().setAccessibleName("Clear messages");
+        assembleTabClearButton.getAccessibleContext().setAccessibleDescription(
+                "Clear all assembler and simulator messages from the Messages tab.");
+        runTabClearButton.getAccessibleContext().setAccessibleName("Clear console");
+        runTabClearButton.getAccessibleContext().setAccessibleDescription(
+                "Clear the simulated console input/output area.");
+        // Mnemonic-style accelerator: Alt+L on the focused Clear button.
+        assembleTabClearButton.setMnemonic(java.awt.event.KeyEvent.VK_L);
+        runTabClearButton.setMnemonic(java.awt.event.KeyEvent.VK_L);
+        // Activate the line-jump behaviour on Enter as well as on a mouse click,
+        // so keyboard-only users can use it. The mouse listener above operates
+        // on the click point; for keyboard users, jump from the caret's line.
+        assemble.getInputMap().put(
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, 0),
+                "jumpToError");
+        assemble.getActionMap().put("jumpToError", new javax.swing.AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                jumpToErrorAtCaret();
+            }
+        });
+        // ---------------------------------------------------------------------
+    }
+
+    /**
+     * Keyboard-accessible counterpart to the mouse listener on the assemble
+     * text area: when Enter is pressed, parse the line under the caret using
+     * the same logic the mouse handler uses and jump to the corresponding
+     * source location.
+     */
+    private void jumpToErrorAtCaret() {
+        try {
+            int line = assemble.getLineOfOffset(assemble.getCaretPosition());
+            int lineStart = assemble.getLineStartOffset(line);
+            int lineEnd = assemble.getLineEndOffset(line);
+            String text = assemble.getText(lineStart, lineEnd - lineStart);
+            if (text.length() == 0) return;
+            if (!(text.startsWith(ErrorList.ERROR_MESSAGE_PREFIX)
+                    || text.startsWith(ErrorList.WARNING_MESSAGE_PREFIX))) {
+                return;
+            }
+            int separatorPosition = text.indexOf(ErrorList.MESSAGE_SEPARATOR);
+            if (separatorPosition >= 0) {
+                text = text.substring(0, separatorPosition);
+            }
+            String[] tokens = text.split("\\s");
+            String lineToken = ErrorList.LINE_PREFIX.trim();
+            String columnToken = ErrorList.POSITION_PREFIX.trim();
+            int srcLine = 0, srcColumn = 0;
+            for (int i = 0; i < tokens.length; i++) {
+                if (tokens[i].equals(lineToken) && i < tokens.length - 1) {
+                    try { srcLine = Integer.parseInt(tokens[i + 1]); } catch (NumberFormatException ignored) {}
+                }
+                if (tokens[i].equals(columnToken) && i < tokens.length - 1) {
+                    try { srcColumn = Integer.parseInt(tokens[i + 1]); } catch (NumberFormatException ignored) {}
+                }
+            }
+            int fileNameStart = text.indexOf(ErrorList.FILENAME_PREFIX) + ErrorList.FILENAME_PREFIX.length();
+            int fileNameEnd = text.indexOf(ErrorList.LINE_PREFIX);
+            String fileName = "";
+            if (fileNameStart < fileNameEnd && fileNameStart >= ErrorList.FILENAME_PREFIX.length()) {
+                fileName = text.substring(fileNameStart, fileNameEnd).trim();
+            }
+            if (fileName != null && fileName.length() > 0) {
+                selectEditorTextLine(fileName, srcLine, srcColumn);
+                selectErrorMessage(fileName, srcLine, srcColumn);
+            }
+        } catch (BadLocationException ignored) {
+            // No-op: nothing to jump to.
+        }
     }
 
     // Center given button in a box, centered vertically and 6 pixels on left and right
@@ -364,7 +447,13 @@ public class MessagesPane extends JTabbedPane {
         }
         JOptionPane pane = new JOptionPane(prompt, JOptionPane.QUESTION_MESSAGE, JOptionPane.DEFAULT_OPTION);
         pane.setWantsInput(true);
+        // Accessibility: ensure screen readers announce both the dialog and the
+        // input field with the syscall prompt text.
+        pane.getAccessibleContext().setAccessibleName("Keyboard Input");
+        pane.getAccessibleContext().setAccessibleDescription(prompt);
         JDialog dialog = pane.createDialog(Globals.getGui(), "Keyboard Input");
+        dialog.getAccessibleContext().setAccessibleName("Keyboard Input");
+        dialog.getAccessibleContext().setAccessibleDescription(prompt);
         dialog.setVisible(true);
         input = (String) pane.getInputValue();
         this.postRunMessage(Globals.userInputAlert + input + "\n");

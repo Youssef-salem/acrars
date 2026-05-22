@@ -123,6 +123,11 @@ public class MainPane extends JTabbedPane {
         return editTabbedPane;
     }
 
+    /** Typed accessor used by the Window menu to enumerate open files. */
+    public EditTabbedPane getEditTabbedPaneTyped() {
+        return editTabbedPane;
+    }
+
     /**
      * returns component containing execution-time display
      *

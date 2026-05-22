@@ -6,6 +6,7 @@ import rars.RISCVprogram;
 import rars.Settings;
 import rars.riscv.hardware.RegisterFile;
 import rars.util.FilenameFinder;
+import rars.venus.util.NativeFileDialog;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
@@ -72,6 +73,38 @@ public class EditTabbedPane extends JTabbedPane {
         this.fileOpener = new FileOpener(editor);
         this.mainPane = mainPane;
         this.editor.setEditTabbedPane(this);
+        // --- Accessibility: name the file-tab strip so screen readers do not
+        // announce a generic "tab group". Each individual file tab gets its
+        // own accessible description applied when the tab is added.
+        getAccessibleContext().setAccessibleName("Open files");
+        getAccessibleContext().setAccessibleDescription(
+                "One tab per open source file. Use Control+PageDown / Control+PageUp "
+                + "to switch between files.");
+        // Use scrolling tab layout so many open files remain reachable instead
+        // of wrapping off-screen.
+        setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        // VoiceOver on macOS Aqua does not announce JTabbedPane tab titles
+        // reliably, so bind explicit keyboard shortcuts and have screen readers
+        // re-read the selected file on every switch.
+        javax.swing.InputMap im = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        javax.swing.ActionMap am = getActionMap();
+        int meta = java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_OPEN_BRACKET,
+                meta | java.awt.event.InputEvent.SHIFT_DOWN_MASK), "rars.prevTab");
+        im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_CLOSE_BRACKET,
+                meta | java.awt.event.InputEvent.SHIFT_DOWN_MASK), "rars.nextTab");
+        im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_TAB,
+                java.awt.event.InputEvent.CTRL_DOWN_MASK), "rars.nextTab");
+        im.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_TAB,
+                java.awt.event.InputEvent.CTRL_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK),
+                "rars.prevTab");
+        am.put("rars.nextTab", new javax.swing.AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { cycleTab(1); }
+        });
+        am.put("rars.prevTab", new javax.swing.AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { cycleTab(-1); }
+        });
+        // -----------------------------------------------------------------
         this.addChangeListener(
                 new ChangeListener() {
                     public void stateChanged(ChangeEvent e) {
@@ -99,6 +132,33 @@ public class EditTabbedPane extends JTabbedPane {
      */
     public EditPane getCurrentEditTab() {
         return (EditPane) this.getSelectedComponent();
+    }
+
+    /**
+     * Cycle to the next or previous open file tab.
+     */
+    private void cycleTab(int delta) {
+        int n = getTabCount();
+        if (n == 0) return;
+        int idx = (getSelectedIndex() + delta + n) % n;
+        setSelectedIndex(idx);
+        EditPane p = (EditPane) getComponentAt(idx);
+        if (p != null) {
+            // Trigger a screen-reader re-announce of the active file.
+            String name = getTitleAt(idx);
+            getAccessibleContext().setAccessibleName("Open files: " + name);
+            p.tellEditingComponentToRequestFocusInWindow();
+        }
+    }
+
+    /**
+     * @return an array of currently-open EditPanes, in tab order.
+     */
+    public EditPane[] getOpenEditPanes() {
+        int n = getTabCount();
+        EditPane[] out = new EditPane[n];
+        for (int i = 0; i < n; i++) out[i] = (EditPane) getComponentAt(i);
+        return out;
     }
 
     /**
@@ -147,6 +207,11 @@ public class EditTabbedPane extends JTabbedPane {
         String name = editor.getNextDefaultFilename();
         editPane.setPathname(name);
         this.addTab(name, editPane);
+        int newTabIdx = indexOfComponent(editPane);
+        setToolTipTextAt(newTabIdx, name);
+        // Each tab page is itself an EditPane (a JPanel); set an accessible
+        // name so a screen reader announces it as e.g. "file tab, untitled1.asm".
+        editPane.getAccessibleContext().setAccessibleName("File tab " + name);
 
         FileStatus.reset();
         FileStatus.setName(name);
@@ -338,55 +403,27 @@ public class EditTabbedPane extends JTabbedPane {
     private File saveAsFile(EditPane editPane) {
         File theFile = null;
         if (editPane != null) {
-            JFileChooser saveDialog = null;
-            boolean operationOK = false;
-            while (!operationOK) {
-                // Set Save As dialog directory in a logical way.  If file in
-                // edit pane had been previously saved, default to its directory.
-                // If a new file (mipsN.asm), default to current save directory.
-                // DPS 13-July-2011
-                if (editPane.isNew()) {
-                    saveDialog = new JFileChooser(editor.getCurrentSaveDirectory());
-                } else {
-                    File f = new File(editPane.getPathname());
-                    if (f != null) {
-                        saveDialog = new JFileChooser(f.getParent());
-                    } else {
-                        saveDialog = new JFileChooser(editor.getCurrentSaveDirectory());
-                    }
-                }
-                String paneFile = editPane.getFilename();
-                if (paneFile != null) saveDialog.setSelectedFile(new File(paneFile));
-                // end of 13-July-2011 code.
-                saveDialog.setDialogTitle("Save As");
-
-                int decision = saveDialog.showSaveDialog(mainUI);
-                if (decision != JFileChooser.APPROVE_OPTION) {
-                    return null;
-                }
-                theFile = saveDialog.getSelectedFile();
-                operationOK = true;
-                if (theFile.exists()) {
-                    int overwrite = JOptionPane.showConfirmDialog(mainUI,
-                            "File " + theFile.getName() + " already exists.  Do you wish to overwrite it?",
-                            "Overwrite existing file?",
-                            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-                    switch (overwrite) {
-                        case JOptionPane.YES_OPTION:
-                            operationOK = true;
-                            break;
-                        case JOptionPane.NO_OPTION:
-                            operationOK = false;
-                            break;
-                        case JOptionPane.CANCEL_OPTION:
-                            return null;
-                        default: // should never occur
-                            return null;
-                    }
-                }
+            // Pick a sensible starting directory: if the file was previously
+            // saved, use that directory; otherwise the editor's current
+            // save directory.
+            String initialDir;
+            if (editPane.isNew()) {
+                initialDir = editor.getCurrentSaveDirectory();
+            } else {
+                File f = new File(editPane.getPathname());
+                initialDir = (f.getParent() != null)
+                        ? f.getParent()
+                        : editor.getCurrentSaveDirectory();
             }
-            // Either file with selected name does not exist or user wants to 
-            // overwrite it, so go for it!
+            String initialName = editPane.getFilename();
+
+            // Use the native OS file dialog. The native Save dialog handles
+            // its own overwrite confirmation, so we don't need a follow-up
+            // JOptionPane.
+            theFile = NativeFileDialog.save(mainUI, "Save As", initialDir, initialName);
+            if (theFile == null) {
+                return null;
+            }
             try {
                 BufferedWriter outFileStream = new BufferedWriter(new FileWriter(theFile));
                 outFileStream.write(editPane.getSource(), 0, editPane.getSource().length());
@@ -539,56 +576,33 @@ public class EditTabbedPane extends JTabbedPane {
 
     private class FileOpener {
         private File mostRecentlyOpenedFile;
-        private JFileChooser fileChooser;
-        private int fileFilterCount;
-        private ArrayList<FileFilter> fileFilterList;
-        private PropertyChangeListener listenForUserAddedFileFilter;
         private Editor theEditor;
 
         public FileOpener(Editor theEditor) {
             this.mostRecentlyOpenedFile = null;
             this.theEditor = theEditor;
-            this.fileChooser = new JFileChooser();
-            this.listenForUserAddedFileFilter = new ChoosableFileFilterChangeListener();
-            this.fileChooser.addPropertyChangeListener(this.listenForUserAddedFileFilter);
-
-            // Note: add sequence is significant - last one added becomes default.
-            fileFilterList = new ArrayList<>();
-            fileFilterList.add(fileChooser.getAcceptAllFileFilter());
-            fileFilterList.add(FilenameFinder.getFileFilter(Globals.fileExtensions, "Assembler Files", true));
-            fileFilterCount = 0; // this will trigger fileChooser file filter load in next line
-            setChoosableFileFilters();
         }
 
         /*
          * Launch a file chooser for name of file to open.  Return true if file opened, false otherwise
          */
         private boolean openFile() {
-            // The fileChooser's list may be rebuilt from the master ArrayList if a new filter
-            // has been added by the user.
-            setChoosableFileFilters();
-            // get name of file to be opened and load contents into text editing area.
-            fileChooser.setCurrentDirectory(new File(theEditor.getCurrentOpenDirectory()));
-            // Set default to previous file opened, if any.  This is useful in conjunction
-            // with option to assemble file automatically upon opening.  File likely to have
-            // been edited externally (e.g. by Mipster).
-            if (Globals.getSettings().getBooleanSetting(Settings.Bool.ASSEMBLE_ON_OPEN) && mostRecentlyOpenedFile != null) {
-                fileChooser.setSelectedFile(mostRecentlyOpenedFile);
+            // Use the native OS file dialog. Filter by the configured assembler
+            // file extensions so users see what they expect by default.
+            File theFile = NativeFileDialog.open(mainUI, "Open",
+                    theEditor.getCurrentOpenDirectory(),
+                    NativeFileDialog.assemblerFilter());
+            if (theFile == null) {
+                return true; // user cancelled; not an error
             }
-
-            if (fileChooser.showOpenDialog(mainUI) == JFileChooser.APPROVE_OPTION) {
-                File theFile = fileChooser.getSelectedFile();
-                theEditor.setCurrentOpenDirectory(theFile.getParent());
-                //theEditor.setCurrentSaveDirectory(theFile.getParent());// 13-July-2011 DPS.
-                if (!openFile(theFile)) {
-                    return false;
-                }
-
-                // possibly send this file right through to the assembler by firing Run->Assemble's
-                // actionPerformed() method.
-                if (theFile.canRead() && Globals.getSettings().getBooleanSetting(Settings.Bool.ASSEMBLE_ON_OPEN)) {
-                    mainUI.getRunAssembleAction().actionPerformed(null);
-                }
+            theEditor.setCurrentOpenDirectory(theFile.getParent());
+            if (!openFile(theFile)) {
+                return false;
+            }
+            // possibly send this file right through to the assembler by firing Run->Assemble's
+            // actionPerformed() method.
+            if (theFile.canRead() && Globals.getSettings().getBooleanSetting(Settings.Bool.ASSEMBLE_ON_OPEN)) {
+                mainUI.getRunAssembleAction().actionPerformed(null);
             }
             return true;
         }
@@ -646,7 +660,12 @@ public class EditTabbedPane extends JTabbedPane {
                 editPane.setFileStatus(FileStatus.NOT_EDITED);
 
                 addTab(editPane.getFilename(), editPane);
-                setToolTipTextAt(indexOfComponent(editPane), editPane.getPathname());
+                int openedIdx = indexOfComponent(editPane);
+                setToolTipTextAt(openedIdx, editPane.getPathname());
+                editPane.getAccessibleContext().setAccessibleName(
+                        "File tab " + editPane.getFilename());
+                editPane.getAccessibleContext().setAccessibleDescription(
+                        "Source file at " + editPane.getPathname());
                 setSelectedComponent(editPane);
                 FileStatus.setSaved(true);
                 FileStatus.setEdited(false);
@@ -669,66 +688,8 @@ public class EditTabbedPane extends JTabbedPane {
         }
 
         // Private method to generate the file chooser's list of choosable file filters.
-        // It is called when the file chooser is created, and called again each time the Open
-        // dialog is activated.  We do this because the user may have added a new filter
-        // during the previous dialog.  This can be done by entering e.g. *.txt in the file
-        // name text field.  Java is funny, however, in that if the user does this then
-        // cancels the dialog, the new filter will remain in the list BUT if the user does
-        // this then ACCEPTS the dialog, the new filter will NOT remain in the list.  However
-        // the act of entering it causes a property change event to occur, and we have a
-        // handler that will add the new filter to our internal filter list and "restore" it
-        // the next time this method is called.  Strangely, if the user then similarly
-        // adds yet another new filter, the new one becomes simply a description change
-        // to the previous one, the previous object is modified AND NO PROPERTY CHANGE EVENT
-        // IS FIRED!  I could obviously deal with this situation if I wanted to, but enough
-        // is enough.  The limit will be one alternative filter at a time.
-        // DPS... 9 July 2008
-
-        private void setChoosableFileFilters() {
-            // See if a new filter has been added to the master list.  If so,
-            // regenerate the fileChooser list from the master list.
-            if (fileFilterCount < fileFilterList.size() ||
-                    fileFilterList.size() != fileChooser.getChoosableFileFilters().length) {
-                fileFilterCount = fileFilterList.size();
-                // First, "deactivate" the listener, because our addChoosableFileFilter
-                // calls would otherwise activate it!  We want it to be triggered only
-                // by MARS user action.
-                boolean activeListener = false;
-                if (fileChooser.getPropertyChangeListeners().length > 0) {
-                    fileChooser.removePropertyChangeListener(listenForUserAddedFileFilter);
-                    activeListener = true;  // we'll note this, for re-activation later
-                }
-                // clear out the list and populate from our own ArrayList.
-                // Last one added becomes the default.
-                fileChooser.resetChoosableFileFilters();
-                for (FileFilter ff : fileFilterList) {
-                    fileChooser.addChoosableFileFilter(ff);
-                }
-                // Restore listener.
-                if (activeListener) {
-                    fileChooser.addPropertyChangeListener(listenForUserAddedFileFilter);
-                }
-            }
-        }//////////////////////////////////////////////////////////////////////////////////
-        //  Private inner class for special property change listener.  DPS 9 July 2008.
-        //  If user adds a file filter, e.g. by typing *.txt into the file text field then pressing
-        //  Enter, then it is automatically added to the array of choosable file filters.  BUT, unless you
-        //  Cancel out of the Open dialog, it is then REMOVED from the list automatically also. Here
-        //  we will achieve a sort of persistence at least through the current activation of MARS.
-
-        private class ChoosableFileFilterChangeListener implements PropertyChangeListener {
-            public void propertyChange(java.beans.PropertyChangeEvent e) {
-                if (e.getPropertyName() == JFileChooser.CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY) {
-                    FileFilter[] newFilters = (FileFilter[]) e.getNewValue();
-                    FileFilter[] oldFilters = (FileFilter[]) e.getOldValue();
-                    if (newFilters.length > fileFilterList.size()) {
-                        // new filter added, so add to end of master list.
-                        fileFilterList.add(newFilters[newFilters.length - 1]);
-                    }
-                }
-            }
-        }
-
+        // (Removed: the native OS file dialog handles its own filtering; we pass a
+        // single FilenameFilter from NativeFileDialog.assemblerFilter() in openFile().)
 
     }
 

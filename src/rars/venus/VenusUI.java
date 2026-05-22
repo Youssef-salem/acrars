@@ -192,6 +192,21 @@ public class VenusUI extends JFrame {
         horizonSplitter.setOneTouchExpandable(true);
         horizonSplitter.resetToPreferredSizes();
 
+        // --- Accessibility: name the top-level regions so screen readers can
+        // give users an overview of the application layout. ---
+        mainPane.getAccessibleContext().setAccessibleName("Main work area");
+        mainPane.getAccessibleContext().setAccessibleDescription(
+                "Tabbed work area containing the source code editor and the execute view.");
+        messagesPane.getAccessibleContext().setAccessibleName("Messages and console");
+        messagesPane.getAccessibleContext().setAccessibleDescription(
+                "Tabbed pane showing assembler and simulator messages and program standard input/output.");
+        registersPane.getAccessibleContext().setAccessibleName("Registers");
+        registersPane.getAccessibleContext().setAccessibleDescription(
+                "Tabbed pane showing integer registers, floating-point registers and control and status registers.");
+        splitter.getAccessibleContext().setAccessibleName("Main and messages splitter");
+        horizonSplitter.getAccessibleContext().setAccessibleName("Work area and registers splitter");
+        // ----------------------------------------------------------------
+
         // due to dependencies, do not set up menu/toolbar until now.
         this.createActionObjects();
         menu = this.setUpMenuBar();
@@ -511,18 +526,24 @@ public class VenusUI extends JFrame {
 
     private JMenuBar setUpMenuBar() {
         JMenuBar menuBar = new JMenuBar();
+        menuBar.getAccessibleContext().setAccessibleName("Main menu bar");
         file = new JMenu("File");
         file.setMnemonic(KeyEvent.VK_F);
+        file.getAccessibleContext().setAccessibleDescription("File operations: new, open, save, close, exit.");
         edit = new JMenu("Edit");
         edit.setMnemonic(KeyEvent.VK_E);
+        edit.getAccessibleContext().setAccessibleDescription("Editing operations: undo, redo, cut, copy, paste, find and replace.");
         run = new JMenu("Run");
         run.setMnemonic(KeyEvent.VK_R);
+        run.getAccessibleContext().setAccessibleDescription("Assembly and simulation controls: assemble, run, step, reset, breakpoints.");
         //window = new JMenu("Window");
         //window.setMnemonic(KeyEvent.VK_W);
         settings = new JMenu("Settings");
         settings.setMnemonic(KeyEvent.VK_S);
+        settings.getAccessibleContext().setAccessibleDescription("Simulator settings: editor, syntax highlighting, memory configuration, accessibility.");
         help = new JMenu("Help");
         help.setMnemonic(KeyEvent.VK_H);
+        help.getAccessibleContext().setAccessibleDescription("Help and about information.");
         // slight bug: user typing alt-H activates help menu item directly, not help menu
 
         fileNew = new JMenuItem(fileNewAction);
@@ -684,12 +705,74 @@ public class VenusUI extends JFrame {
         menuBar.add(settings);
         JMenu toolMenu = ToolLoader.buildToolsMenu();
         if (toolMenu != null) menuBar.add(toolMenu);
+        // Build a Window menu that lists every currently-open file. Tabs in
+        // the editor pane aren't reliably announced by VoiceOver on macOS, so
+        // this menu gives screen reader users a guaranteed keyboard path to
+        // switch between open files (Cmd+1 .. Cmd+9 also bind to the first
+        // nine items, like most native Mac editors).
+        window = buildWindowMenu();
+        menuBar.add(window);
         menuBar.add(help);
 
         // experiment with popup menu for settings. 3 Aug 2006 PS
         //setupPopupMenu();
 
         return menuBar;
+    }
+
+    /**
+     * Build a Window menu listing every currently-open file. Items are
+     * regenerated whenever the menu is shown, and the first nine get a
+     * Cmd/Ctrl+digit accelerator so they can be reached instantly from the
+     * keyboard. This is the screen-reader-friendly fallback for the file
+     * tab strip, which VoiceOver on macOS does not announce reliably.
+     */
+    private JMenu buildWindowMenu() {
+        final JMenu menu = new JMenu("Window");
+        menu.setMnemonic(KeyEvent.VK_W);
+        menu.getAccessibleContext().setAccessibleName("Window menu");
+        menu.getAccessibleContext().setAccessibleDescription(
+                "Switch between open source files. Each open file is listed here; "
+                + "select one to make it the active editor tab.");
+        menu.addMenuListener(new javax.swing.event.MenuListener() {
+            public void menuSelected(javax.swing.event.MenuEvent e) {
+                menu.removeAll();
+                EditTabbedPane tabs = mainPane.getEditTabbedPaneTyped();
+                EditPane[] panes = tabs.getOpenEditPanes();
+                if (panes.length == 0) {
+                    JMenuItem empty = new JMenuItem("(no open files)");
+                    empty.setEnabled(false);
+                    menu.add(empty);
+                    return;
+                }
+                int meta = java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+                for (int i = 0; i < panes.length; i++) {
+                    final int idx = i;
+                    final EditPane pane = panes[i];
+                    String label = (i + 1) + ". " + pane.getFilename();
+                    JMenuItem item = new JCheckBoxMenuItem(label, idx == tabs.getSelectedIndex());
+                    item.getAccessibleContext().setAccessibleName(pane.getFilename());
+                    item.getAccessibleContext().setAccessibleDescription(
+                            "Switch to " + pane.getFilename());
+                    if (i < 9) {
+                        item.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
+                                KeyEvent.VK_1 + i, meta));
+                    }
+                    item.addActionListener(new java.awt.event.ActionListener() {
+                        public void actionPerformed(java.awt.event.ActionEvent ev) {
+                            tabs.setSelectedIndex(idx);
+                            pane.tellEditingComponentToRequestFocusInWindow();
+                        }
+                    });
+                    menu.add(item);
+                }
+            }
+            public void menuDeselected(javax.swing.event.MenuEvent e) { }
+            public void menuCanceled(javax.swing.event.MenuEvent e) { }
+        });
+        // Populate once so the menu isn't empty before first activation.
+        menu.add(new JMenuItem("(no open files)")).setEnabled(false);
+        return menu;
     }
    
     /*
@@ -699,49 +782,39 @@ public class VenusUI extends JFrame {
 
     JToolBar setUpToolBar() {
         JToolBar toolBar = new JToolBar();
+        // The main toolbar contains icon-only buttons. Without an explicit
+        // accessible name, screen readers (VoiceOver, NVDA, JAWS) announce
+        // each one as an unlabeled "button". Build every toolbar button
+        // through accessibleIconButton(...) so the action's name and tooltip
+        // are mirrored into the button's AccessibleContext, and the screen
+        // reader announces e.g. "New, button, Create a new file for editing".
+        toolBar.getAccessibleContext().setAccessibleName("Main toolbar");
+        toolBar.getAccessibleContext().setAccessibleDescription(
+                "Toolbar with shortcuts for file, edit and run commands. "
+                + "Each button is also available from the menu bar with a keyboard mnemonic.");
 
-        New = new JButton(fileNewAction);
-        New.setText("");
-        Open = new JButton(fileOpenAction);
-        Open.setText("");
-        Save = new JButton(fileSaveAction);
-        Save.setText("");
-        SaveAs = new JButton(fileSaveAsAction);
-        SaveAs.setText("");
-        DumpMemory = new JButton(fileDumpMemoryAction);
-        DumpMemory.setText("");
+        New = accessibleIconButton(fileNewAction);
+        Open = accessibleIconButton(fileOpenAction);
+        Save = accessibleIconButton(fileSaveAction);
+        SaveAs = accessibleIconButton(fileSaveAsAction);
+        DumpMemory = accessibleIconButton(fileDumpMemoryAction);
 
-        Undo = new JButton(editUndoAction);
-        Undo.setText("");
-        Redo = new JButton(editRedoAction);
-        Redo.setText("");
-        Cut = new JButton(editCutAction);
-        Cut.setText("");
-        Copy = new JButton(editCopyAction);
-        Copy.setText("");
-        Paste = new JButton(editPasteAction);
-        Paste.setText("");
-        FindReplace = new JButton(editFindReplaceAction);
-        FindReplace.setText("");
-        SelectAll = new JButton(editSelectAllAction);
-        SelectAll.setText("");
+        Undo = accessibleIconButton(editUndoAction);
+        Redo = accessibleIconButton(editRedoAction);
+        Cut = accessibleIconButton(editCutAction);
+        Copy = accessibleIconButton(editCopyAction);
+        Paste = accessibleIconButton(editPasteAction);
+        FindReplace = accessibleIconButton(editFindReplaceAction);
+        SelectAll = accessibleIconButton(editSelectAllAction);
 
-        Run = new JButton(runGoAction);
-        Run.setText("");
-        Assemble = new JButton(runAssembleAction);
-        Assemble.setText("");
-        Step = new JButton(runStepAction);
-        Step.setText("");
-        Backstep = new JButton(runBackstepAction);
-        Backstep.setText("");
-        Reset = new JButton(runResetAction);
-        Reset.setText("");
-        Stop = new JButton(runStopAction);
-        Stop.setText("");
-        Pause = new JButton(runPauseAction);
-        Pause.setText("");
-        Help = new JButton(helpHelpAction);
-        Help.setText("");
+        Run = accessibleIconButton(runGoAction);
+        Assemble = accessibleIconButton(runAssembleAction);
+        Step = accessibleIconButton(runStepAction);
+        Backstep = accessibleIconButton(runBackstepAction);
+        Reset = accessibleIconButton(runResetAction);
+        Stop = accessibleIconButton(runStopAction);
+        Pause = accessibleIconButton(runPauseAction);
+        Help = accessibleIconButton(helpHelpAction);
 
         toolBar.add(New);
         toolBar.add(Open);
@@ -770,6 +843,34 @@ public class VenusUI extends JFrame {
         toolBar.add(new JToolBar.Separator());
 
         return toolBar;
+    }
+
+    /**
+     * Build an icon-only toolbar button from an Action while preserving its
+     * accessibility metadata. JButton.setText("") removes the visible label
+     * (giving us an icon-only look) but also clears the component's accessible
+     * name, so VoiceOver / NVDA / JAWS would announce the control as just
+     * "button". This helper copies the Action's NAME into the button's
+     * accessible name and the Action's SHORT_DESCRIPTION into both the tool
+     * tip and the accessible description so screen-reader users hear something
+     * meaningful.
+     */
+    private static JButton accessibleIconButton(Action a) {
+        JButton b = new JButton(a);
+        b.setText("");
+        Object name = a.getValue(Action.NAME);
+        Object desc = a.getValue(Action.SHORT_DESCRIPTION);
+        if (name != null) {
+            b.getAccessibleContext().setAccessibleName(name.toString());
+        }
+        if (desc != null) {
+            // setToolTipText() drives the AccessibleJComponent description by
+            // default, but set it explicitly in case a look-and-feel overrides
+            // that behaviour.
+            b.setToolTipText(desc.toString());
+            b.getAccessibleContext().setAccessibleDescription(desc.toString());
+        }
+        return b;
     }
 
 

@@ -71,6 +71,45 @@ public class RegistersPane extends JTabbedPane {
         this.setToolTipTextAt(0, "CPU registers");
         this.setToolTipTextAt(1, "Floating point unit registers");
         this.setToolTipTextAt(2, "Control and Status registers");
+
+        // --- Accessibility ---------------------------------------------------
+        // Give every tab and the underlying register panels a screen-reader
+        // friendly name and description. The JTables they contain are already
+        // exposed cell-by-cell through Swing's AccessibleJTable.
+        getAccessibleContext().setAccessibleName("Register tabs");
+        getAccessibleContext().setAccessibleDescription(
+                "Use the left and right arrow keys to switch between the integer, "
+                + "floating-point and control-and-status register tables.");
+        setAccessibleTab(0, "Integer registers", "Table of the 32 RISC-V integer registers.");
+        setAccessibleTab(1, "Floating-point registers", "Table of the 32 RISC-V floating-point registers.");
+        setAccessibleTab(2, "Control and status registers", "Table of RISC-V control and status registers (CSRs).");
+        regsTab.getAccessibleContext().setAccessibleName("Integer register table");
+        fpTab.getAccessibleContext().setAccessibleName("Floating-point register table");
+        csrTab.getAccessibleContext().setAccessibleName("Control and status register table");
+        // Allow Control+PageDown / Control+PageUp (the standard JTabbedPane
+        // shortcut) and provide a mnemonic-style traversal hint to AT.
+        setFocusable(true);
+        // ---------------------------------------------------------------------
+    }
+
+    private void setAccessibleTab(int index, String name, String description) {
+        java.awt.Component tab = getTabComponentAt(index);
+        if (tab instanceof javax.accessibility.Accessible) {
+            ((javax.accessibility.Accessible) tab).getAccessibleContext().setAccessibleName(name);
+            ((javax.accessibility.Accessible) tab).getAccessibleContext().setAccessibleDescription(description);
+        }
+        // Also annotate the page content's accessible context if available.
+        java.awt.Component page = getComponentAt(index);
+        if (page instanceof javax.accessibility.Accessible) {
+            javax.accessibility.AccessibleContext ctx =
+                    ((javax.accessibility.Accessible) page).getAccessibleContext();
+            if (ctx.getAccessibleName() == null) {
+                ctx.setAccessibleName(name);
+            }
+            if (ctx.getAccessibleDescription() == null) {
+                ctx.setAccessibleDescription(description);
+            }
+        }
     }
 
     /**

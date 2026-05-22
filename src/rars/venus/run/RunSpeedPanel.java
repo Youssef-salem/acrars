@@ -98,9 +98,21 @@ public class RunSpeedPanel extends JPanel {
         sliderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         this.add(sliderLabel, BorderLayout.NORTH);
         this.add(runSpeedSlider, BorderLayout.CENTER);
-        this.setToolTipText("Simulation speed for \"Go\".  At " +
+        String tip = "Simulation speed for \"Go\".  At " +
                 ((int) speedTable[SPEED_INDEX_INTERACTION_LIMIT]) + " inst/sec or less, tables updated " +
-                "after each instruction.");
+                "after each instruction.";
+        this.setToolTipText(tip);
+        // Accessibility: expose this control to screen readers and keyboard users.
+        sliderLabel.setLabelFor(runSpeedSlider);
+        sliderLabel.getAccessibleContext().setAccessibleName("Run speed");
+        runSpeedSlider.setToolTipText(tip);
+        runSpeedSlider.setFocusable(true);
+        runSpeedSlider.getAccessibleContext().setAccessibleName("Run speed slider");
+        runSpeedSlider.getAccessibleContext().setAccessibleDescription(
+                "Simulation speed in instructions per second; slide right for faster, " +
+                "all the way right for unlimited (no GUI interaction). " +
+                "Use Left and Right arrows to adjust.");
+        this.getAccessibleContext().setAccessibleName("Run speed controls");
     }
 
     /**
@@ -142,9 +154,10 @@ public class RunSpeedPanel extends JPanel {
             JSlider source = (JSlider) e.getSource();
             if (!source.getValueIsAdjusting()) {
                 runSpeedIndex = (int) source.getValue();
-            } else {
-                sliderLabel.setText(setLabel(source.getValue()));
             }
+            // Always update label so accessibility tools and visible label
+            // reflect the current slider value, whether mid-drag or settled.
+            sliderLabel.setText(setLabel(source.getValue()));
         }
     }
 }
