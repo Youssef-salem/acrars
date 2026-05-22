@@ -95,6 +95,34 @@ open dist/RARS.app
 
 Drag `dist/RARS.app` into `/Applications` to make it Spotlight-searchable.
 
+### Windows installer
+
+On Windows, with JDK 17+ and the [WiX Toolset 3.x](https://wixtoolset.org/) on
+PATH:
+
+```
+build-jar.bat              REM produces rars.jar
+build-app.bat              REM produces dist\RARS-1.6.msi
+```
+
+The MSI installs `RARS.exe` (with a private Java 17 runtime) into
+`Program Files\RARS`, adds a Start menu entry, and registers the
+`-Drars.accessibility=true` flag automatically.
+
+If you don't want to install, just run the jar directly with Temurin 17:
+
+```
+java -Drars.accessibility=true -jar rars.jar
+```
+
+### Pre-built releases
+
+Tag a commit `v1.6`, `v1.7`, … and push the tag — GitHub Actions
+(`.github/workflows/release.yml`) builds `RARS.app` (macOS), `RARS.msi`
+(Windows), `RARS.deb` (Linux) and the bare `rars.jar`, and attaches them to a
+GitHub Release. Users can download the right artifact for their OS without
+needing Java installed separately.
+
 ## Changes from MARS 4.5
 
 RARS was built on MARS 4.5 and owes a lot to the development of MARS; its
